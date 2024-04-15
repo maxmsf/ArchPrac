@@ -1,0 +1,69 @@
+# The name of the workflow that will trigger when a Pull-Request is created by developers/consultants
+name: Validate Pull Request APsbx
+
+# Definition when the workflow should run in developer branch
+on:
+  pull_request:
+    # The workflow will run when a pull request is opened, or when a commit is pushed to the developer branch that has an existing pull request
+    types: [opened, synchronize]
+    branches: [develop]
+    # Specifing the force-app the directory that is relevant for the check
+    paths:
+      - "force-app/**"
+
+# List of jobs to be executed from the workflow
+jobs:
+  # first job
+  validate-only-changed-metadata-deployment-on-developer-sandbox:
+    name: "Check only deployment in shared Developer Sandbox"
+    runs-on: salesfive-runner
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    steps:
+      # install git
+      - name: "Installing GIT"
+        run: |
+          sudo apt update
+          sudo apt install -y git
+      # Install nodejs
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      # Checkout the source code
+      - name: 'Checkout source code'
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+          # Installing Salesforce CLI
+      - name: "Installing Salesforce CLI"
+        run: |
+          npm install --global sfdx-cli@7.202.7
+
+      # Installing sfdx-git-Delta plugin - https://github.com/scolladon/sfdx-git-delta
+      - name: "Installing sfdx-git-delta"
+        run: |
+          echo y | sfdx plugins:install sfdx-git-delta@5.19.0
+          sfdx plugins
+
+      # We use sfdx-git-delta to create a directory with only the metadata that has changed, this allows us to deploy only those changes, as opposed to deploying the entire branch. This helps reducing deployment times
+      - name: "Creating delta packages for new, modified or deleted metadata"
+        run: |
+          mkdir -p changed-sources
+          sfdx sgd:source:delta --to "HEAD" --from "origin/develop" --output changed-sources/ --generate-delta --source force-app/ -i .forceignore -a 59.0 -W
+
+      # Get the sharedDev Sandbox SFDX URL and store it in a text file
+      - name: "Populating auth file with SFDX_URL secret of Developer sandbox"
+        shell: bash
+        run: |
+          echo "${{ secrets.ARCHPREPSBX}}" > ./authfile
+
+      # Authenticating to AP Sandbox using the URL stored in the text file
+      - name: "Authenticating to Developer sandbox"
+        run: sfdx auth:sfdxurl:store -f ./authfile -s -a AP
+
+      # We do a check-only deployment of all new/changed metadata and destructive metadata (if any)
+      - name: "Check-only deployment of the generated delta changes + Run all local unit tests"
+        run: |
+          chmod +x ./scripts/utils/coPipelineDeployment.sh
+          .scripts/utils/coPipelineDeployment.sh "AP"
