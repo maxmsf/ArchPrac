@@ -21,7 +21,7 @@ on:
 jobs:
   pool:
     name: "Refilling AP Pool with fresh scratch orgs"
-    runs-on: salesfive-runner
+    runs-on: ubuntu-latest
     container: ghcr.io/dxatscale/sfpowerscripts:22.5.5-5408150885
     timeout-minutes: 720 #Set to Maximum Time out
     steps:
