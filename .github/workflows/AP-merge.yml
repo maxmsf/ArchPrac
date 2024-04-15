@@ -1,0 +1,59 @@
+# The name of the workflow that will trigger when a Pull Request is squashed and merged by the Release Manager
+name: Release to DEV sandbox
+
+# Definition when the workflow should run on the developer branch
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "force-app/**"
+
+# Jobs to be executed
+jobs:
+  deploy-branch-to-developer-sandbox:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    steps:
+      # Install Node.js
+      - name: "Install Node.js"
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20" # You can specify here the desired Node.js version
+
+      # Installing Salesforce CLI
+      - name: "Installing Salesforce CLI"
+        run: |
+          npm install --global sfdx-cli@7.202.7
+
+      # install SFDX-Git-Delta plugin - https://github.com/scolladon/sfdx-git-delta
+      - name: "Installing sfdx git delta"
+        run: |
+          echo y | sfdx plugins:install sfdx-git-delta@5.19.0
+          sfdx plugins
+
+      # Checkout the source code
+      - name: "Checkout source code"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # Store secret for AP sandbox
+      - name: "Populate auth file with SFDX_URL secret of Developer sandbox"
+        shell: bash
+        run: |
+          echo ${{ secrets.ARCHPREPSBX}} > ./authfile
+
+      - name: "Creating delta packages for new, modified or deleted metadata"
+        run: |
+          mkdir -p changed-sources
+          sfdx sgd:source:delta --to "HEAD" --from "HEAD^" --output changed-sources/ --generate-delta --source force-app/ -i .forceignore -a 59.0 -W
+
+      # Authenticate to Developer Sandbox
+      - name: "Authenticating to Developer Sandbox"
+        run: sfdx auth:sfdxurl:store -f ./authfile -s -a AP
+
+      # Deploying the whole branch to Developer Sandbox
+      - name: "Deployment of the generated delta changes / Run local tests"
+        run: |
+          chmod +x ./scripts/utils/pipelineDeployment.sh
+          ./scripts/utils/pipelineDeployment.sh "AP"
