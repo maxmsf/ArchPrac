@@ -65,5 +65,5 @@ jobs:
       # We do a check-only deployment of all new/changed metadata and destructive metadata (if any)
       - name: "Check-only deployment of the generated delta changes + Run all local unit tests"
         run: |
-          chmod +x ./scripts/utils/coPipelineDeployment.sh
+          chmod +x .scripts/utils/coPipelineDeployment.sh
           .scripts/utils/coPipelineDeployment.sh "AP"
