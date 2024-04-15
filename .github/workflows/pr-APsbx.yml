@@ -16,7 +16,7 @@ jobs:
   # first job
   validate-only-changed-metadata-deployment-on-developer-sandbox:
     name: "Check only deployment in shared Developer Sandbox"
-    runs-on: salesfive-runner
+    runs-on: ubuntu-latest
     if: ${{ github.actor != 'dependabot[bot]' }}
     steps:
       # install git
