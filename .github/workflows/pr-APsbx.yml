@@ -66,4 +66,4 @@ jobs:
       - name: "Check-only deployment of the generated delta changes + Run all local unit tests"
         run: |
           chmod +x ./scripts/utils/coPipelineDeployment.sh
-          .scripts/utils/coPipelineDeployment.sh "AP"
+          ./scripts/utils/coPipelineDeployment.sh "AP"
